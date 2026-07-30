@@ -1,91 +1,80 @@
 import streamlit as st
 import os
 import tempfile
+import yt_dlp
 from moviepy.video.io.VideoFileClip import VideoFileClip
 
 st.set_page_config(page_title="محلل وصانع الشورتس الذكي", page_icon="🧠", layout="centered")
 
 st.markdown("""
     <h1 style='text-align: center;'>🧠 محلل وصانع الشورتس الذكي بالذكاء الاصطناعي</h1>
-    <p style='text-align: center;'>قم برفع الفيديو أو لصق الرابط لتحليل القصة واستخراج الشورتس الذكية بدقة 9:16!</p>
+    <p style='text-align: center;'>مخصص لتحليل البودكاست والفيديوهات الطويلة واستخراج أحلى اللقطات بدقة 9:16!</p>
 """, unsafe_allow_html=True)
 
-# خيارين: إما رفع ملف فيديو مباشرة (لتجنب حظر يوتيوب نهائياً) أو لصق الرابط
-upload_option = st.radio("اختر طريقة إدخال الفيديو:", ["رفع ملف فيديو من الجهاز", "رابط يوتيوب"])
+url = st.text_input("🔗 أدخل رابط يوتيوب (حتى لو كان طويلاً 3-4 ساعات):")
 
-video_path = None
-video_title = "فيديو مرفق"
-video_duration = 0
+# تحديد نقطة البداية للمقطع المطلوب استخراجه من الفيديو الطويل
+start_minute = st.number_input("⏱️ ابدأ استخراج الشورتس من الدقيقة رقم:", min_value=0, value=0, step=1)
 
-if upload_option == "رفع ملف فيديو من الجهاز":
-    uploaded_file = st.file_uploader("📂 اختر ملف الفيديو (MP4):", type=["mp4", "mov", "avi"])
-    if uploaded_file is not None:
-        tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-        tfile.write(uploaded_file.read())
-        video_path = tfile.name
-        video_title = uploaded_file.name
-        
-        with VideoFileClip(video_path) as clip:
-            video_duration = clip.duration
-else:
-    url = st.text_input("🔗 أدخل رابط يوتيوب هنا:")
-    if url and st.button("🚀 تحليل رابط يوتيوب"):
-        st.warning("⚠️ نظراً لقيود حماية يوتيوب الصارمة على السيرفرات السحابية، يُفضل استخدام خيار (رفع ملف فيديو من الجهاز) للحصول على أفضل وأسرع نتيجة بدون أخطاء.")
+if st.button("🚀 تحليل واستخراج الشورتس من الفيديو الطويل"):
+    if not url:
+        st.warning("الرجاء إدخال رابط يوتيوب أولاً.")
+    else:
+        with st.spinner("🤖 جاري الاتصال بيوتيوب وسحب المقطع المطلوب من البودكاست الطويل..."):
+            try:
+                # إعدادات متقدمة جداً لتجاوز حظر يوتيوب على الفيديوهات الطويلة
+                ydl_opts = {
+                    'format': 'best[height<=720]', # جودة مناسبة وسريعة للتحميل
+                    'outtmpl': os.path.join(tempfile.gettempdir(), 'long_podcast_video.mp4'),
+                    'noplaylist': True,
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                    },
+                    'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+                }
+                
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    video_title = info.get('title', 'بودكاست')
+                    video_path = ydl.prepare_filename(info)
 
-if video_path and st.button("✨ ابدأ استخراج وتعديل مقاطع الشورتس (9:16)"):
-    with st.spinner("🤖 جاري تحليل وتقطيع الفيديو بالذكاء الاصطناعي..."):
-        try:
-            ai_clips = []
-            if video_duration < 45:
-                ai_clips.append({
-                    "title": f"القصة الكاملة: {video_title}",
-                    "desc": "مقطع قصير مكثف يلخص الفكرة الأساسية.",
-                    "start": 0,
-                    "end": int(video_duration)
-                })
-            else:
-                ai_clips.append({
-                    "title": "🔥 اللقطة والبداية المشوقة",
-                    "desc": "أهم نقطة في بداية الفيديو لجذب الانتباه.",
-                    "start": 0,
-                    "end": min(60, int(video_duration))
-                })
-                if video_duration > 120:
-                    ai_clips.append({
-                        "title": "💡 ذروة ونهاية القصة",
-                        "desc": "مقطع يركز على التفاصيل الجوهرية.",
-                        "start": 65,
-                        "end": min(125, int(video_duration))
-                    })
+                st.success(f"✅ تم سحب الفيديو بنجاح: {video_title}")
 
-            st.success(f"✅ تم تحليل الفيديو بنجاح! المدة الإجمالية: {int(video_duration)} ثانية")
+                start_sec = start_minute * 60
+                clip_duration = 50 # مدة الشورت 50 ثانية
 
-            for idx, clip in enumerate(ai_clips, 1):
+                output_clip_path = os.path.join(tempfile.gettempdir(), "extracted_short.mp4")
+
+                with st.spinner("🎬 جاري قص وتعديل الشورت إلى مقاس 9:16..."):
+                    with VideoFileClip(video_path) as video:
+                        total_dur = video.duration
+                        if start_sec >= total_dur:
+                            start_sec = 0
+                            st.warning("الدقيقة المحددة تتجاوز مدة الفيديو، تم البدء من البداية.")
+                        
+                        end_sec = min(start_sec + clip_duration, total_dur)
+                        
+                        sub = video.subclipped(start_sec, end_sec)
+                        w, h = sub.size
+                        target_w = h * 9 / 16
+                        if target_w < w:
+                            x1 = (w - target_w) / 2
+                            sub = sub.crop(x1=x1, y1=0, x2=x1 + target_w, y2=h)
+                        sub = sub.resized(width=1080, height=1920)
+                        sub.write_videofile(output_clip_path, codec="libx264", audio_codec="aac", logger=None)
+
                 st.markdown("---")
-                st.subheader(f"🎬 مقطع الشورتس الذكي #{idx}")
-                st.write(str(f"📌 **العنوان:** {clip['title']}"))
-                st.write(str(f"📝 **الوصف:** {clip['desc']}"))
-                st.write(str(f"⏱️ **التوقيت:** من الثانية {clip['start']} إلى {clip['end']}"))
-                
-                output_clip_path = os.path.join(tempfile.gettempdir(), f"ai_short_{idx}.mp4")
-                
-                with VideoFileClip(video_path) as video:
-                    sub = video.subclipped(clip['start'], clip['end'])
-                    w, h = sub.size
-                    target_w = h * 9 / 16
-                    if target_w < w:
-                        x1 = (w - target_w) / 2
-                        sub = sub.crop(x1=x1, y1=0, x2=x1 + target_w, y2=h)
-                    sub = sub.resized(width=1080, height=1920)
-                    sub.write_videofile(output_clip_path, codec="libx264", audio_codec="aac", logger=None)
-                
+                st.subheader("✨ جاهز للتحميل!")
+                st.write(f"📌 **المقطع المستخرج من الدقيقة:** {start_minute} إلى الدقيقة {start_minute + 1}")
+
                 with open(output_clip_path, "rb") as file:
                     st.download_button(
-                        label=str(f"⬇️ تحميل شورت رقم #{idx} (9:16)"),
+                        label="⬇️ تحميل الشورت جاهز للنشر (9:16)",
                         data=file,
-                        file_name=f"short_{idx}.mp4",
-                        mime="video/mp4",
-                        key=str(f"dl_btn_{idx}")
+                        file_name="podcast_short_916.mp4",
+                        mime="video/mp4"
                     )
-        except Exception as e:
-            st.error(str(f"حدث خطأ أثناء معالجة الفيديو: {e}"))
+
+            except Exception as e:
+                st.error(f"حدث خطأ أثناء معالجة البودكاست: {e}")
