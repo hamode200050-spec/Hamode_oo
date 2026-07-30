@@ -12,7 +12,6 @@ api_key = st.text_input("🔑 أضف مفتاح Groq API الخاص بك:", type
 url = st.text_input("🔗 أدخل رابط يوتيوب:")
 
 def extract_video_id(youtube_url):
-    # أنماط مختلفة لرابط يوتيوب لضمان التقاط المعرف (ID) بكل الحالات بدقة
     patterns = [
         r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',
         r'(?:embed\/)([0-9A-Za-z_-]{11})',
@@ -37,26 +36,39 @@ if st.button("🚀 بدء التحليل الدقيق"):
                 client = Groq(api_key=api_key)
                 
                 with st.spinner("جاري سحب معلومات الفيديو وتفريغ النص (Transcript)..."):
-                    # 1. سحب عنوان ووصف الفيديو
                     with yt_dlp.YoutubeDL({'skip_download': True}) as ydl:
                         info = ydl.extract_info(url, download=False)
                         title = info.get('title', 'فيديو')
                     
-                    # 2. سحب تفريغ النص الحقيقي من يوتيوب مع الأوقات
                     transcript_text = ""
                     try:
-                        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['ar', 'en'])
+                        # التحديث الصحيح لاستخدام المكتبة عبر الـ instance أو الـ list
+                        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                        # محاولة جلب التفريغ العربي أولاً أو الإنجليزي كبديل
+                        transcript = None
+                        try:
+                            transcript = transcript_list.find_transcript(['ar'])
+                        except:
+                            try:
+                                transcript = transcript_list.find_transcript(['en'])
+                            except:
+                                transcript = next(iter(transcript_list))
+                        
+                        fetched_data = transcript.fetch()
+                        
                         formatted_transcript = []
-                        for entry in transcript_list:
-                            start_sec = int(entry['start'])
+                        for entry in fetched_data:
+                            # التعامل مع بنية البيانات الجديدة للـ entry
+                            start_sec = int(entry.get('start', 0))
                             mins, secs = divmod(start_sec, 60)
                             time_stamp = f"[{mins:02d}:{secs:02d}]"
-                            formatted_transcript.append(f"{time_stamp} {entry['text']}")
+                            text_part = entry.get('text', '')
+                            formatted_transcript.append(f"{time_stamp} {text_part}")
                         
                         transcript_text = " ".join(formatted_transcript)
-                        transcript_text = transcript_text[:15000] # اقتطاع النص لتفادي تجاوز حدود التوكنز
-                    except (TranscriptsDisabled, NoTranscriptFound):
-                        st.warning("⚠️ عذراً، تفريغ النص (Transcript) غير متوفر تلقائياً لهذا الفيديو. سيتم الاعتماد على سياق العنوان والوصف.")
+                        transcript_text = transcript_text[:15000]
+                    except Exception as e:
+                        st.warning("⚠️ عذراً، تفريغ النص (Transcript) المتعلق بهذا الفيديو غير متاحة أو مغلقة. سيتم الاعتماد على العنوان والوصف.")
                         transcript_text = "التفريغ غير متوفر، يرجى الاعتماد على العنوان والوصف."
 
                 with st.spinner("جاري التحليل العميق واستخراج المقاطع القصيرة بالثواني الصحيحة..."):
