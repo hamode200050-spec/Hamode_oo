@@ -1,23 +1,29 @@
 import streamlit as st
 import yt_dlp
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+import google.generativeai as genai
 
-st.set_page_config(page_title="محلل النصوص والذروات للبودكاست", page_icon="🧠", layout="centered")
+st.set_page_config(page_title="محلل البودكاست الذكي بالـ AI", page_icon="⚡", layout="centered")
 
 st.markdown("""
-    <h1 style='text-align: center;'>🧠 محلل البودكاست الذكي (عبر تحليلات النص)</h1>
-    <p style='text-align: center;'>قراءة سكريبت الفيديو واستخراج اللحظات التي تحتوي على قصص وأفكار كاملة بذكاء!</p>
+    <h1 style='text-align: center;'>⚡ محلل البودكاست الذكي (مدعوم بالذكاء الاصطناعي)</h1>
+    <p style='text-align: center;'>تحليل عنوان وسياق الفيديو واقتراح أفضل اللقطات للـ Shorts بذكاء تام!</p>
 """, unsafe_allow_html=True)
+
+# إدخال مفتاح الـ Gemini API من واجهة الاستخدام أو عبر Secrets
+api_key = st.text_input("🔑 أضف مفتاح Google Gemini API الخاص بك:", type="password")
 
 url = st.text_input("🔗 أدخل رابط يوتيوب (بودكاست طويل):")
 
-def extract_video_id(youtube_url):
-    """استخراج معرف الفيديو من الرابط بدقة"""
-    if "youtu.be/" in youtube_url:
-        return youtube_url.split("youtu.be/")[1].split("?")[0]
-    elif "watch?v=" in youtube_url:
-        return youtube_url.split("watch?v=")[1].split("&")[0]
-    return None
+def extract_video_info(youtube_url):
+    """استخراج معلومات الفيديو الأساسية والعنوان والمدة"""
+    ydl_opts = {'skip_download': True}
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(youtube_url, download=False)
+        return {
+            'title': info.get('title', 'بدون عنوان'),
+            'duration': info.get('duration', 600),
+            'channel': info.get('uploader', 'قناة يوتيوب')
+        }
 
 def format_time(seconds):
     """دالة لتحويل الثواني إلى تنسيق زمني دقيق"""
@@ -30,100 +36,60 @@ def format_time(seconds):
     else:
         return f"{minutes:02d}:{secs:02d}"
 
-if st.button("🚀 بدء تحليل النص واستخراج أفضل اللحظات"):
-    if not url:
-        st.warning("الرجاء إدخال رابط يوتيوب أولاً.")
+if st.button("🚀 تحليل البودكاست واستخراج اللقطات الذكية"):
+    if not api_key:
+        st.warning("⚠️ الرجاء إدخال مفتاح Google Gemini API أولاً.")
+    elif not url:
+        st.warning("⚠️ الرجاء إدخال رابط يوتيوب.")
     else:
-        video_id = extract_video_id(url)
-        if not video_id:
-            st.error("رابط يوتيوب غير صالح، يرجى التحقق منه.")
-        else:
-            with st.spinner("🤖 جاري سحب نصوص الفيديو (Transcript) وتحليل الكلام للبحث عن الذروات..."):
-                try:
-                    ydl_opts = {'skip_download': True}
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        info = ydl.extract_info(url, download=False)
-                        title = info.get('title', 'بدون عنوان')
-                        duration = info.get('duration', 600) # مدة الفيديو بالثواني
+        try:
+            genai.configure(api_key=api_key)
+            # استخدام نموذج جيميناي السريع والذكي
+            model = genai.GenerativeModel('gemini-1.5-flash')
 
-                    transcript_data = None
-                    
-                    # محاولة سحب الترجمة بعدة طرق لتجنب الأخطاء
-                    try:
-                        transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=['ar', 'en'])
-                    except Exception:
-                        try:
-                            # محاولة جلب أي لغات متوفرة أخرى
-                            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-                            for tr in transcript_list:
-                                transcript_data = tr.fetch()
-                                break
-                        except Exception:
-                            transcript_data = None
+            with st.spinner("🔍 جاري جلب بيانات البودكاست وتحليله عبر الذكاء الاصطناعي..."):
+                video_info = extract_video_info(url)
+                title = video_info['title']
+                duration = video_info['duration']
+                channel = video_info['channel']
 
-                    # إذا لم تتوفر النصوص نهائياً، نقوم بتقسيم الفيديو افتراضياً بناءً على مدته الحقيقية لضمان عدم توقف الأداة
-                    if not transcript_data:
-                        st.warning("⚠️ هذا الفيديو لا يحتوي على نصوص أو ترجمة متاحة للسحب المباشر. تم الانتقال للتقسيم الذكي بناءً على مدة الفيديو:")
-                        
-                        # إنشاء مقاطع وهمية لكن دقيقة بناءً على مدة البودكاست
-                        step = 60 # كل دقيقة
-                        clips = []
-                        for i in range(0, min(duration, 600), 60):
-                            clips.append({
-                                "start": i,
-                                "end": min(i + 55, duration),
-                                "summary": f"مقطع توضيحي مقترح من البودكاست (الدقيقة {i // 60})"
-                            })
-                    else:
-                        st.success("✅ تم بنجاح قراءة وتحليل نص البودكاست!")
-                        clips = []
-                        current_clip_start = 0
-                        current_text_chunk = []
-                        
-                        for entry in transcript_data:
-                            start = entry.get('start', 0)
-                            text = entry.get('text', '')
-                            
-                            if start - current_clip_start < 75:
-                                current_text_chunk.append(text)
-                            else:
-                                if len(current_text_chunk) > 3:
-                                    end_time = start
-                                    snippet_text = " ".join(current_text_chunk[:5])
-                                    clips.append({
-                                        "start": int(current_clip_start),
-                                        "end": int(end_time),
-                                        "summary": snippet_text[:60] + "..."
-                                    })
-                                current_clip_start = start
-                                current_text_chunk = [text]
+                # طلب ذكي من نموذج الذكاء الاصطناعي لتوزيع المقاطع بناءً على العنوان والمدة
+                prompt = f"""
+                أنت خبير مونتاج وصناعة محتوى لـ YouTube Shorts.
+                دينا فيديو بودكاست بالمعلومات التالية:
+                - عنوان الفيديو: "{title}"
+                - اسم القناة: "{channel}"
+                - المدة الإجمالية بالثواني: {duration}
 
-                    st.markdown("---")
-                    st.subheader("📌 عنوان الفيديو الأصلي:")
-                    st.info(title)
+                بناءً على عنوان البودكاست وموضوعه العام، قم بتقسيم الفيديو إلى 5 إلى 8 مقاطع (Shorts) ممتازة وجذابة.
+                أعطني النتيجة حصراً بصيغة قائمة منسقة لكل مقطع تحتوي على:
+                1. وقت البداية بالثواني (start_seconds)
+                2. وقت النهاية بالثواني (end_seconds) - بحيث تكون مدة المقطع بين 40 إلى 60 ثانية.
+                3. عنوان أو فكرة جذابة للمقطع (idea).
+                
+                اجعل الإجابة مرتبة وواضحة جداً لكي يتم تحليلها برمجياً أو عرضها للمستخدم.
+                """
 
-                    if not clips:
-                        st.warning("لم يتم العثور على مقاطع كافية.")
-                    else:
-                        st.subheader(f"✨ تم العثور على ({len(clips)}) لقطة مقترحة للـ Shorts:")
+                response = model.generate_content(prompt)
+                ai_text = response.text
 
-                        for idx, clip in enumerate(clips, 1):
-                            start_str = format_time(clip['start'])
-                            end_str = format_time(clip['end'])
-                            clip_duration = clip['end'] - clip['start']
-                            clip_snippet = clip['summary']
+            st.success("✨ تم تحليل البودكاست وتوليد المقاطع بنجاح!")
+            st.markdown("---")
+            st.subheader("📌 معلومات الفيديو:")
+            st.info(f"العنوان: {title} | القناة: {channel}")
 
-                            with st.container():
-                                st.markdown(f"### 🎬 اللقطة رقم #{idx}")
-                                st.markdown(f"📌 **فكرة المقطع:** `{clip_snippet}`")
-                                st.markdown(f"⏳ **التوقيت الدقيق:** من (`{start_str}`) إلى (`{end_str}`) | **المدة:** {clip_duration} ثانية")
-                                
-                                custom_desc = f"لقطة مؤثرة من البودكاست حول: {clip_snippet}\n\n💡 شاهد المقطع للنهاية لتستفيد من الفكرة كاملة. لا تنس الإعجاب والاشتراك!"
-                                st.text_area(f"✍️ الوصف المقترح للمقطع #{idx}:", value=custom_desc, height=75, key=f"desc_{idx}")
-                                
-                                st.text_input(f"🏷️ الهاشتاقات المخصصة #{idx}:", value=f"#shorts #اكسبلور #بودكاست #وعي #قصص", key=f"tags_{idx}")
-                                
-                                st.markdown("---")
+            st.subheader("🤖 اقتراحات الذكاء الاصطناعي للمقاطع:")
+            st.write(ai_text)
 
-                except Exception as e:
-                    st.error(f"حدث خطأ أثناء معالجة الرابط: {e}")
+            # إضافة حقول جاهزة للتعديل والنسخ للمقاطع المقترحة
+            st.markdown("---")
+            st.subheader("✍️ صندوق تجهيز الوصف والهاشتاقات:")
+            
+            for i in range(1, 6):
+                with st.expander(f"🎬 مقطع مقترح رقم #{i}"):
+                    st.text_input(f"عنوان الشورت #{i}", value=f"لقطة مميزة من: {title}", key=f"title_{i}")
+                    st.text_area(f"الوصف #{i}", value=f"تابع التفاصيل الكاملة في بودكاست {channel}\n\n💡 لا تنس الإعجاب والاشتراك للمزيد من المحتوى الهادف!\n#shorts #بودكاست #اكسبلور", key=f"desc_{i}", height=70)
+
+        except Exception as e:
+        
+            st.error(f"حدث خطأ أثناء الاتصال أو التحليل: {e}")
