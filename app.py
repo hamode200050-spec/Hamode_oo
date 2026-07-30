@@ -31,8 +31,8 @@ if st.button("🚀 تحليل البودكاست واستخراج اللقطات
     else:
         try:
             genai.configure(api_key=api_key)
-            # استخدام النموذج البديل المضمون والمتوافق تماماً
-            model = genai.GenerativeModel('gemini-1.5-pro')
+            # استخدام اسم النموذج الأساسي المتوافق دائماً مع الـ API Keys
+            model = genai.GenerativeModel('gemini-pro')
 
             with st.spinner("🔍 جاري جلب بيانات البودكاست وتحليله عبر الذكاء الاصطناعي..."):
                 video_info = extract_video_info(url)
@@ -42,7 +42,7 @@ if st.button("🚀 تحليل البودكاست واستخراج اللقطات
 
                 prompt = f"""
                 أنت خبير مونتاج وصناعة محتوى لـ YouTube Shorts.
-                دينا فيديو بودكاست بالمعلومات التالية:
+                لدينا فيديو بودكاست بالمعلومات التالية:
                 - عنوان الفيديو: "{title}"
                 - اسم القناة: "{channel}"
                 - المدة الإجمالية بالثواني: {duration}
