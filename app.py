@@ -40,22 +40,19 @@ if st.button("🚀 بدء تحليل النص واستخراج أفضل اللح
         else:
             with st.spinner("🤖 جاري سحب نصوص الفيديو (Transcript) وتحليل الكلام للبحث عن الذروات..."):
                 try:
-                    # جلب معلومات الفيديو الأساسية
                     ydl_opts = {'skip_download': True}
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         info = ydl.extract_info(url, download=False)
                         title = info.get('title', 'بدون عنوان')
 
-                    # محاولة جلب الترجمة أو النص باللغة العربية أو الإنجليزية
                     transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['ar', 'en'])
                     
                     st.success("✅ تم بنجاح قراءة وتحليل نص البودكاست!")
                     
                     st.markdown("---")
-                    st.subheader(f"📌 عنوان الفيديو الأصلي:")
+                    st.subheader("📌 عنوان الفيديو الأصلي:")
                     st.info(title)
 
-                    # خوارزمية ذكية لتجميع النص إلى مقاطع قصيرة (بين 45 إلى 85 ثانية لكل مقطع) بناءً على تدفق الكلام
                     clips = []
                     current_clip_start = 0
                     current_text_chunk = []
@@ -64,12 +61,12 @@ if st.button("🚀 بدء تحليل النص واستخراج أفضل اللح
                         start = entry['start']
                         text = entry['text']
                         
-                        if start - current_clip_start < 75:  # تجميع الجمل حتى نقترب من المدة المثالية للشورتس
+                        if start - current_clip_start < 75:
                             current_text_chunk.append(text)
                         else:
-                            if len(current_text_chunk) > 3:  # نتأكد أن هناك محتوى كافي
+                            if len(current_text_chunk) > 3:
                                 end_time = start
-                                snippet_text = " ".join(current_text_chunk[:5]) # أخذ أول جمل تعبر عن فكرة المقطع كعنوان
+                                snippet_text = " ".join(current_text_chunk[:5])
                                 clips.append({
                                     "start": int(current_clip_start),
                                     "end": int(end_time),
@@ -90,9 +87,9 @@ if st.button("🚀 بدء تحليل النص واستخراج أفضل اللح
                             clip_snippet = clip['summary']
 
                             with st.container():
-                                st.markdown(### 🎬 اللقطة رقم #{idx})
-                                st.markdown(📌 **فكرة المقطع من النص:** `{clip_snippet}` )
-                                st.markdown(⏳ **التوقيت الدقيق:** من (`{start_str}`) إلى (`{end_str}`) | **المدة:** {clip_duration} ثانية)
+                                st.markdown(f"### 🎬 اللقطة رقم #{idx}")
+                                st.markdown(f"📌 **فكرة المقطع من النص:** `{clip_snippet}`")
+                                st.markdown(f"⏳ **التوقيت الدقيق:** من (`{start_str}`) إلى (`{end_str}`) | **المدة:** {clip_duration} ثانية")
                                 
                                 custom_desc = f"لقطة مؤثرة من البودكاست حول: {clip_snippet}\n\n💡 شاهد المقطع للنهاية لتستفيد من الفكرة كاملة. لا تنس الإعجاب والاشتراك!"
                                 st.text_area(f"✍️ الوصف المقترح للمقطع #{idx}:", value=custom_desc, height=75, key=f"desc_{idx}")
