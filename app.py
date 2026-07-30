@@ -45,7 +45,23 @@ if st.button("🚀 بدء تحليل النص واستخراج أفضل اللح
                         info = ydl.extract_info(url, download=False)
                         title = info.get('title', 'بدون عنوان')
 
-                    transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['ar', 'en'])
+                    # استخدام الطريقة المتوافقة مع أحدث إصدارات المكتبة لجلب الترجمة
+                    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                    
+                    # محاولة سحب الترجمة العربية أو الإنجليزية المتاحة
+                    transcript = None
+                    try:
+                        transcript = transcript_list.find_transcript(['ar', 'en'])
+                    except:
+                        # إذا لم تكما متاحتين، نأخذ أي ترجمة متوفرة ونترجمها أو نعرضها
+                        for tr in transcript_list:
+                            transcript = tr
+                            break
+                    
+                    if transcript:
+                        transcript_data = transcript.fetch()
+                    else:
+                        raise NoTranscriptFound("لا توجد ترجمة متاحة")
                     
                     st.success("✅ تم بنجاح قراءة وتحليل نص البودكاست!")
                     
@@ -57,9 +73,9 @@ if st.button("🚀 بدء تحليل النص واستخراج أفضل اللح
                     current_clip_start = 0
                     current_text_chunk = []
                     
-                    for entry in transcript_list:
-                        start = entry['start']
-                        text = entry['text']
+                    for entry in transcript_data:
+                        start = entry.get('start', 0)
+                        text = entry.get('text', '')
                         
                         if start - current_clip_start < 75:
                             current_text_chunk.append(text)
@@ -101,6 +117,6 @@ if st.button("🚀 بدء تحليل النص واستخراج أفضل اللح
                 except TranscriptsDisabled:
                     st.error("❌ عذراً، الترجمة أو النصوص غير مفعلة لهذا الفيديو، ولا يمكن استخراج النص داخله.")
                 except NoTranscriptFound:
-                    st.error("❌ لم يتم العثور على نصوص متوفرة بهذا الفيديو باللغة العربية أو الإنجليزية.")
+                    st.error("❌ لم يتم العثور على نصوص متوفرة بهذا الفيديو.")
                 except Exception as e:
                     st.error(f"حدث خطأ أثناء تحليل النص: {e}")
