@@ -19,14 +19,14 @@ if st.button("🚀 تحليل الفيديو بالـ AI واستخراج الق
     else:
         with st.spinner("🤖 يقوم الذكاء الاصطناعي الآن بقراءة الفيديو، تحليل محتواه، واكتشاف أهم القصص..."):
             try:
+                # استخدام عميل بديل تجاوز الحظر تماماً
                 ydl_opts = {
-                    'format': 'best',
+                    'format': 'best[ext=mp4]/best',
                     'outtmpl': os.path.join(tempfile.gettempdir(), 'ai_source_video.mp4'),
                     'noplaylist': True,
-                    'http_headers': {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                    },
-                    'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
+                    'extractor_args': {'youtube': {'player_client': ['android', 'mweb']}},
+                    'geo_bypass': True,
+                    'nocheckcertificate': True,
                 }
                 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
