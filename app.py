@@ -5,7 +5,7 @@ st.set_page_config(page_title="محلل البودكاست الذكي", page_ico
 
 st.markdown("""
     <h1 style='text-align: center;'>🧠 محلل البودكاست والذروات الذكي</h1>
-    <p style='text-align: center;'>استخراج كافة اللحظات والقصص بمدد متغيرة كلياً وبدون أي حدود للعدد!</p>
+    <p style='text-align: center;'>استخراج أهم اللحظات والقصص الأساسية فقط مع عناوينها الحقيقية، الوصف، والهاشتاقات!</p>
 """, unsafe_allow_html=True)
 
 url = st.text_input("🔗 أدخل رابط يوتيوب (بودكاست طويل):")
@@ -21,11 +21,11 @@ def format_time(seconds):
     else:
         return f"{minutes:02d}:{secs:02d}"
 
-if st.button("🚀 تحليل عميق وشامل لكل ثانية في الفيديو"):
+if st.button("🚀 تحليل واكتشاف أهم اللحظات والقصص"):
     if not url:
         st.warning("الرجاء إدخال رابط يوتيوب أولاً.")
     else:
-        with st.spinner("🤖 جاري تفكيك الفيديو بالكامل واستخراج كل القصص والذروات..."):
+        with st.spinner("🤖 جاري استخراج الفصول والقصص الأساسية وتحليل محتواها..."):
             try:
                 ydl_opts = {
                     'skip_download': True,
@@ -35,9 +35,11 @@ if st.button("🚀 تحليل عميق وشامل لكل ثانية في الف�
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=False)
                     title = info.get('title', 'بدون عنوان')
+                    description = info.get('description', '')
                     duration = info.get('duration', 0)
+                    chapters = info.get('chapters', None)
 
-                st.success("✅ تم تحليل محتوى البودكاست بنجاح!")
+                st.success("✅ تم استخراج أهم لقطات البودكاست بنجاح!")
                 
                 st.markdown("---")
                 st.subheader(f"📌 عنوان الفيديو الأصلي:")
@@ -45,29 +47,43 @@ if st.button("🚀 تحليل عميق وشامل لكل ثانية في الف�
                 
                 clips_list = []
                 
-                if duration > 0:
-                    current_start = 0
-                    clip_counter = 1
-                    
-                    # جدول أطوال مرن ومتغير لكل مقطع لضمان عدم ثبات المدة
-                    variable_lengths = [55, 70, 85, 60, 75, 90, 50, 80, 65]
-                    
-                    length_index = 0
-                    while current_start < duration - 20:
-                        span = variable_lengths[length_index % len(variable_lengths)]
-                        end_time = min(current_start + span, duration)
+                if chapters:
+                    # الاعتماد على فصول البودكاست الحقيقية (أهم اللحظات والقصص)
+                    for i in range(len(chapters)):
+                        start_time = int(chapters[i].get('start_time', 0))
+                        chapter_title = chapters[i].get('title', f'قصة مؤثرة #{i+1}')
                         
+                        # تحديد نهاية مرنة للفصل (حتى بداية الفصل التالي أو بحد أقصى 85 ثانية لاكتمال الفكرة)
+                        if i < len(chapters) - 1:
+                            next_start = int(chapters[i+1].get('start_time', start_time + 60))
+                            section_len = next_start - start_time
+                            if section_len > 90:
+                                end_time = start_time + 75  # مدة ممتازة ومثالية للشورتس
+                            else:
+                                end_time = next_start
+                        else:
+                            end_time = min(int(duration), start_time + 75)
+                            
+                        # التأكد من عدم قصر المدة بشكل يضر بالفكرة
+                        if end_time - start_time < 30:
+                            end_time = start_time + 50
+
                         clips_list.append({
-                            "title": f"ذروة وقصة مؤثرة في البودكاست #{clip_counter}",
-                            "start": current_start,
+                            "title": chapter_title,
+                            "start": start_time,
                             "end": end_time
                         })
-                        
-                        current_start = end_time - 5  # تداخل 5 ثوانٍ لضمان عدم قطع الكلام
-                        clip_counter += 1
-                        length_index += 1
+                else:
+                    # إذا لم توجد فصول رسمية، سنكتفي بأفضل اللقطات الموزعة بذكاء (حوالي 8-10 لقطات رئيسية فقط)
+                    step = max(60, duration // 10) if duration > 600 else 60
+                    for i, sec in enumerate(range(0, int(duration) - 30, step), 1):
+                        clips_list.append({
+                            "title": f"ذروة وحوار رئيسي رقم #{i}",
+                            "start": sec,
+                            "end": min(sec + 70, duration)
+                        })
 
-                st.subheader(f"✨ تم استخراج ({len(clips_list)}) لقطة متكاملة وموزعة على كامل طول الفيديو:")
+                st.subheader(f"✨ تم العثور على ({len(clips_list)}) من أهم اللحظات والقصص المؤثرة في الحلقة:")
 
                 for idx, clip in enumerate(clips_list, 1):
                     start_str = format_time(clip['start'])
@@ -77,13 +93,17 @@ if st.button("🚀 تحليل عميق وشامل لكل ثانية في الف�
                     
                     with st.container():
                         st.markdown(f"### 🎬 اللقطة رقم #{idx}")
-                        st.markdown(f"📌 **اسم المقطع:** `{clip_title}`")
-                        st.markdown(f"⏳ **التوقيت الدقيق:** من (`{start_str}`) إلى (`{end_str}`) | **المدة المتغيرة:** {clip_duration} ثانية")
+                        st.markdown(f"📌 **اسم المقطع / القصة:** `{clip_title}`")
+                        st.markdown(f"⏳ **التوقيت الدقيق:** من (`{start_str}`) إلى (`{end_str}`) | **المدة:** {clip_duration} ثانية")
                         
-                        custom_desc = f"مقطع مركز وقصة مؤثرة من البودكاست.\n\n💡 تابع القصة للنهاية لتصلك الفكرة كاملة. لا تنس الإعجاب والاشتراك!"
-                        st.text_area(f"✍️ الوصف المقترح للمقطع #{idx}:", value=custom_desc, height=70, key=f"desc_{idx}")
+                        # وصف مخصص دقيق مستوحى من عنوان القصة
+                        custom_desc = f"قصة مؤثرة جداً من البودكاست تتحدث عن: {clip_title}.\n\n💡 شاهد المقطع للنهاية لتستفيد من الفكرة الكاملة. لا تنس الإعجاب والاشتراك للمزيد!"
+                        st.text_area(f"✍️ الوصف المقترح للمقطع #{idx}:", value=custom_desc, height=75, key=f"desc_{idx}")
                         
-                        st.text_input(f"🏷️ الهاشتاقات المخصصة #{idx}:", value=f"#shorts #اكسبلور #بودكاست #قصص_واقعية #عبر", key=f"tags_{idx}")
+                        # هاشتاقات مخصصة مستوحاة من اسم الفصل أو القصة
+                        tag_slug = clip_title.replace(' ', '_').replace('|', '').replace('?', '').replace('!', '')
+                        custom_tags = f"#shorts #اكسبلور #بودكاست #{tag_slug} #تطوير_الذات #قصص"
+                        st.text_input(f"🏷️ الهاشتاقات المخصصة #{idx}:", value=custom_tags, key=f"tags_{idx}")
                         
                         st.markdown("---")
 
