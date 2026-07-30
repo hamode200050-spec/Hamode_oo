@@ -40,21 +40,10 @@ if st.button("🚀 تحليل البودكاست واستخراج اللقطات
         try:
             genai.configure(api_key=api_key)
             
-            # البحث الدقيق عن أول نموذج يقبل توليد النصوص في حسابك وتصفية البادئة لضمان عدم حدوث خطأ 404
-            selected_model = None
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    # نأخذ اسم النموذج بدون بادئة models/ إذا وجدت لضمان التوافق
-                    model_path = m.name.replace("models/", "")
-                    selected_model = model_path
-                    break
-            
-            if not selected_model:
-                selected_model = "gemini-1.5-flash"
+            # محاولة استخدام أحدث نموذج متاح بشكل مباشر وآمن
+            model = genai.GenerativeModel('gemini-1.5-flash')
 
-            model = genai.GenerativeModel(selected_model)
-
-            with st.spinner(f"🔍 جاري تحليل البودكاست باستخدام النموذج ({selected_model})..."):
+            with st.spinner("🔍 جاري تحليل البودكاست عبر الذكاء الاصطناعي..."):
                 video_info = extract_video_info(url)
                 title = video_info['title']
                 duration = video_info['duration']
