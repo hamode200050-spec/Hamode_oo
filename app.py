@@ -5,7 +5,7 @@ st.set_page_config(page_title="محلل البودكاست الذكي", page_ico
 
 st.markdown("""
     <h1 style='text-align: center;'>🧠 محلل البودكاست والذروات الذكي</h1>
-    <p style='text-align: center;'>استخراج جميع اللحظات المهمة بمدد مرنة وطبيعية (لكي تكتمل فكرة القصة تماماً للمشاهد)!</p>
+    <p style='text-align: center;'>استخراج جميع اللحظات بدون أي حدود للعدد، وبمدد حقيقية متغيرة لاكتمال الفكرة!</p>
 """, unsafe_allow_html=True)
 
 url = st.text_input("🔗 أدخل رابط يوتيوب (بودكاست طويل):")
@@ -21,11 +21,11 @@ def format_time(seconds):
     else:
         return f"{minutes:02d}:{secs:02d}"
 
-if st.button("🚀 تحليل الفيديو واكتشاف اللحظات الكاملة"):
+if st.button("🚀 تحليل شامل واستخراج كل اللقطات بدقة"):
     if not url:
         st.warning("الرجاء إدخال رابط يوتيوب أولاً.")
     else:
-        with st.spinner("🤖 جاري قراءة محتوى الفيديو وفحص الفصول لضمان اكتمال كل فكرة..."):
+        with st.spinner("🤖 جاري قراءة محتوى الفيديو وفحص كافة الفصول والقصص..."):
             try:
                 ydl_opts = {
                     'skip_download': True,
@@ -46,25 +46,22 @@ if st.button("🚀 تحليل الفيديو واكتشاف اللحظات ال�
                 
                 clips_list = []
                 if chapters:
+                    # جلب كل الفصول الموجودة في الفيديو بلا استثناء (بدون أي تقييد بـ 10 مقاطع)
                     for i in range(len(chapters)):
                         start_time = int(chapters[i].get('start_time', 0))
                         
-                        # تحديد نهاية مرنة تماماً بناءً على طول القصة أو الحوار في الفصل
+                        # تحديد نهاية المقطع بناءً على وقت بداية الفصل التالي مباشرةً لضمان أخذ طول الفكرة الحقيقي
                         if i < len(chapters) - 1:
-                            next_start = int(chapters[i+1].get('start_time', start_time + 60))
-                            section_len = next_start - start_time
-                            
-                            # إذا كانت الفكرة قصيرة نأخذها كما هي، وإذا طويلة نسمح لها بالامتداد حتى تكتمل (بين 45 إلى 90 ثانية حسب سياق القصة)
-                            if section_len > 95:
-                                end_time = start_time + 75 # مدة مثالية لاكتمال المعنى
-                            else:
-                                end_time = next_start
+                            end_time = int(chapters[i+1].get('start_time', start_time + 60))
                         else:
-                            end_time = min(int(duration), start_time + 70)
+                            end_time = int(duration)
                         
-                        # التأكد من عدم وجود مقاطع قصيرة مكسورة
-                        if end_time - start_time < 30:
-                            end_time = start_time + 50
+                        # إذا كان الفصل طويلاً جداً (مثلاً أكثر من دقيقتين ونصف)، نسمح له بالامتداد حتى دقيقتين لتبقى الفكرة مشوقة للشورتس
+                        section_len = end_time - start_time
+                        if section_len > 150: 
+                            end_time = start_time + 90  # دقيقة ونصف كحد أقصى للقصص الطويلة جداً
+                        elif section_len < 25:
+                            end_time = start_time + 45  # لكي لا يكون المقطع قصيراً مكسور الفكرة
                             
                         clips_list.append({
                             "title": chapters[i].get('title', f"لقطة مؤثرة #{i+1}"),
@@ -72,16 +69,17 @@ if st.button("🚀 تحليل الفيديو واكتشاف اللحظات ال�
                             "end": end_time
                         })
                 else:
-                    # تقسيم ذكي مرن إذا لم توجد فصول جاهزة في الفيديو
-                    step = 100
-                    for i, sec in enumerate(range(0, max(1, duration - 40), step), 1):
+                    # إذا لم توجد فصول، نقسم الفيديو إلى مقاطع متتالية تغطي الفيديو كاملاً
+                    step = 75
+                    for i, sec in enumerate(range(0, max(1, duration - 30), step), 1):
+                        end_sec = min(sec + 75, duration)
                         clips_list.append({
                             "title": f"ذروة وقصة مؤثرة #{i}",
                             "start": sec,
-                            "end": min(sec + 65, duration)
+                            "end": end_sec
                         })
 
-                st.subheader(f"✨ تم العثور على ({len(clips_list)}) لقطة رئيسية (بدون قيود، وبمدد تتناسب مع اكتمال الفكرة تماماً):")
+                st.subheader(f"✨ تم العثور على ({len(clips_list)}) لقطة رئيسية في هذا الفيديو (بكل العدد الحقيقي ومدد متغيرة تماماً):")
 
                 for idx, clip in enumerate(clips_list, 1):
                     start_str = format_time(clip['start'])
@@ -92,7 +90,7 @@ if st.button("🚀 تحليل الفيديو واكتشاف اللحظات ال�
                     with st.container():
                         st.markdown(f"### 🎬 اللقطة رقم #{idx}")
                         st.markdown(f"📌 **عنوان اللقطة أو القصة:** `{clip_title}`")
-                        st.markdown(f"⏳ **التوقيت الدقيق:** من (`{start_str}`) إلى (`{end_str}`) | **المدة:** {clip_duration} ثانية (مرنة لاكتمال الفكرة للمشاهد)")
+                        st.markdown(f"⏳ **التوقيت الدقيق:** من (`{start_str}`) إلى (`{end_str}`) | **المدة الحقيقية:** {clip_duration} ثانية")
                         
                         # وصف مخصص لكل لقطة
                         custom_desc = f"قصة وفكرة مؤثرة من البودكاست حول: {clip_title}.\n\n💡 شاهد المقطع للنهاية لتستفيد من الفكرة كاملة. لا تنس الإعجاب والاشتراك!"
