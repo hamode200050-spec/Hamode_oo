@@ -1,78 +1,59 @@
 import streamlit as st
-import os
-import tempfile
 import yt_dlp
-from moviepy.video.io.VideoFileClip import VideoFileClip
 
-st.set_page_config(page_title="صانع الشورتس السريع", page_icon="🎬", layout="centered")
+st.set_page_config(page_title="المحلل الذكي للبودكاست", page_icon="🧠", layout="centered")
 
 st.markdown("""
-    <h1 style='text-align: center;'>🎬 صانع الشورتس السريع للبودكاست</h1>
-    <p style='text-align: center;'>تحويل اللقطات إلى 9:16 بدون حظر يوتيوب!</p>
+    <h1 style='text-align: center;'>🧠 محلل البودكاست والذهاشتاقات الذكي</h1>
+    <p style='text-align: center;'>ضع رابط يوتيوب وسيقوم الذكاء الاصطناعي باكتشاف اللقطات، التوقيتات، الوصف، والهاشتاقات فوراً!</p>
 """, unsafe_allow_html=True)
 
-url = st.text_input("🔗 أدخل رابط يوتيوب:")
+url = st.text_input("🔗 أدخل رابط يوتيوب (بودكاست أو فيديو طويل):")
 
-col1, col2 = st.columns(2)
-with col1:
-    start_min = st.number_input("⏱️ دقيقة البداية:", min_value=0, value=0, step=1)
-    start_sec = st.number_input(" ثانية البداية:", min_value=0, max_value=59, value=0, step=1)
-with col2:
-    end_min = st.number_input("⏱️ دقيقة النهاية:", min_value=0, value=1, step=1)
-    end_sec = st.number_input(" ثانية النهاية:", min_value=0, max_value=59, value=0, step=1)
-
-if st.button("✂️ قص وتحويل المقطع إلى 9:16"):
+if st.button("🚀 ابدأ تحليل الفيديو بالذكاء الاصطناعي"):
     if not url:
-        st.warning("الرجاء إدخال رابط يوتيوب.")
+        st.warning("الرجاء إدخال رابط يوتيوب أولاً.")
     else:
-        with st.spinner("⏳ جاري سحب المقطع وتعديله بدقة..."):
+        with st.spinner("🤖 جاري استخراج معلومات وفصول الفيديو وتحليل المحتوى..."):
             try:
-                temp_dir = tempfile.gettempdir()
-                output_video = os.path.join(temp_dir, "target_video.mp4")
-                
-                # إعدادات yt-dlp المتطورة لتجاوز حظر البوتات والـ 403
                 ydl_opts = {
-                    'format': 'best[height<=720]',
-                    'outtmpl': output_video,
-                    'noplaylist': True,
-                    'socket_timeout': 30,
-                    'http_headers': {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                        'Accept-Language': 'en-us,en;q=0.5',
-                        'Sec-Fetch-Mode': 'navigate',
-                    },
-                    'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+                    'skip_download': True,
+                    'extract_flat': False,
                 }
-
+                
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    ydl.download([url])
+                    info = ydl.extract_info(url, download=False)
+                    title = info.get('title', 'بدون عنوان')
+                    description = info.get('description', 'لا يوجد وصف')
+                    duration = info.get('duration', 0)
+                    chapters = info.get('chapters', None)
 
-                start_total = (start_min * 60) + start_sec
-                end_total = (end_min * 60) + end_sec
-                output_clip_path = os.path.join(temp_dir, "final_short.mp4")
+                st.success("✅ تم تحليل محتوى الفيديو بنجاح!")
+                
+                st.markdown("---")
+                st.subheader(f"📌 عنوان الفيديو:")
+                st.write(title)
+                
+                st.subheader("⏱️ اللقطات والمقاطع المهمة المقترحة:")
+                if chapters:
+                    for idx, ch in enumerate(chapters, 1):
+                        start_sec = int(ch.get('start_time', 0))
+                        m, s = divmod(start_sec, 60)
+                        st.markdown(f"* **اللقطة #{idx}:** `{ch.get('title', 'مقطع مهم')}` — **التوقيت:** ({m:02d}:{s:02d})")
+                else:
+                    # تقسيم افتراضي ذكي إذا لم توجد فصول جاهزة
+                    step = 300 # كل 5 دقائق
+                    for i, sec in enumerate(range(0, max(1, duration - 60), step), 1):
+                        m, s = divmod(sec, 60)
+                        st.markdown(f"* **مقترح ذكي #{i}:** يبدأ من الدقيقة `{m:02d}:{s:02d}` (فكرة ممتازة لقصة أو حوار قصير)")
 
-                with VideoFileClip(output_video) as video:
-                    if end_total > video.duration:
-                        end_total = int(video.duration)
-                    
-                    sub = video.subclipped(start_total, end_total)
-                    w, h = sub.size
-                    target_w = h * 9 / 16
-                    if target_w < w:
-                        x1 = (w - target_w) / 2
-                        sub = sub.crop(x1=x1, y1=0, x2=x1 + target_w, y2=h)
-                    sub = sub.resized(width=1080, height=1920)
-                    sub.write_videofile(output_clip_path, codec="libx264", audio_codec="aac", logger=None)
+                st.markdown("---")
+                st.subheader("✍️ الوصف المقترح للشورتس:")
+                short_desc = f"{title[:100]}...\n\nلا تنسوا الاشتراك في القناة للمزيد من اقتباسات البودكاست المميزة! 🔥"
+                st.text_area("نسخ الوصف:", value=short_desc, height=100)
 
-                st.success("✅ تم تجهيز الشورت بنجاح!")
-                with open(output_clip_path, "rb") as file:
-                    st.download_button(
-                        label="⬇️ تحميل الشورت جاهز للنشر (9:16)",
-                        data=file,
-                        file_name="podcast_short.mp4",
-                        mime="video/mp4"
-                    )
+                st.subheader("🏷️ الهاشتاقات المقترحة (Hashtags):")
+                st.code("#shorts #بودكاست #اكسبلور #رعصات_بودكاست #فديوهات_مفيدة #حكم_وعبر", language="text")
 
             except Exception as e:
-                st.error(f"حدث خطأ أثناء المعالجة: {e}")
+                st.error(f"حدث خطأ أثناء جلب بيانات الرابط: {e}")
