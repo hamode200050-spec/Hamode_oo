@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import tempfile
-import yt_dlp
+from pytubefix import YouTube
 from moviepy.video.io.VideoFileClip import VideoFileClip
 
 st.set_page_config(page_title="محلل وصانع الشورتس الذكي", page_icon="🧠", layout="centered")
@@ -19,21 +19,14 @@ if st.button("🚀 تحليل الفيديو بالـ AI واستخراج الق
     else:
         with st.spinner("🤖 يقوم الذكاء الاصطناعي الآن بقراءة الفيديو، تحليل محتواه، واكتشاف أهم القصص..."):
             try:
-                # استخدام عميل بديل تجاوز الحظر تماماً
-                ydl_opts = {
-                    'format': 'best[ext=mp4]/best',
-                    'outtmpl': os.path.join(tempfile.gettempdir(), 'ai_source_video.mp4'),
-                    'noplaylist': True,
-                    'extractor_args': {'youtube': {'player_client': ['android', 'mweb']}},
-                    'geo_bypass': True,
-                    'nocheckcertificate': True,
-                }
+                yt = YouTube(url)
+                video_title = yt.title
+                video_duration = yt.length
                 
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=True)
-                    video_title = info.get('title', 'فيديو يوتيوب')
-                    video_duration = info.get('float_duration', info.get('duration', 0))
-                    video_path = ydl.prepare_filename(info)
+                # تحميل أعلى جودة متاحة تتجاوز الحظر
+                stream = yt.streams.get_highest_resolution()
+                temp_dir = tempfile.gettempdir()
+                video_path = stream.download(output_path=temp_dir, filename="ai_source_video.mp4")
 
                 st.success(f"✅ تم تحليل الفيديو بنجاح: {video_title}")
 
@@ -69,7 +62,7 @@ if st.button("🚀 تحليل الفيديو بالـ AI واستخراج الق
                     st.write(f"📝 **الوصف الـ AI المناسب للنشر:** {clip['desc']}")
                     st.write(f"⏱️ **التوقيت الزمني:** من الثانية {clip['start']} إلى {clip['end']} (المدة: {clip['end'] - clip['start']} ثانية)")
                     
-                    output_clip_path = os.path.join(tempfile.gettempdir(), f"ai_short_{idx}.mp4")
+                    output_clip_path = os.path.join(temp_dir, f"ai_short_{idx}.mp4")
                     try:
                         with VideoFileClip(video_path) as video:
                             sub = video.subclipped(clip['start'], clip['end'])
