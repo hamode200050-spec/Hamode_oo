@@ -40,56 +40,49 @@ if st.button("🚀 تحليل البودكاست واستخراج اللقطات
         try:
             genai.configure(api_key=api_key)
             
-            # جلب أول نموذج متاح ومدعوم لتوليد النصوص في حسابك تلقائياً
-            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            
-            if not available_models:
-                st.error("❌ لا توجد نماذج متاحة حالياً لهذا المفتاح.")
-            else:
-                # اختيار أول نموذج متوفر مباشرة
-                model_name = available_models[0]
-                model = genai.GenerativeModel(model_name)
+            # استخدام النموذج المباشر والمتوافق مع حسابات الـ API
+            model = genai.GenerativeModel('gemini-1.5-flash')
 
-                with st.spinner(f"🔍 جاري تحليل البودكاست عبر النموذج ({model_name})..."):
-                    video_info = extract_video_info(url)
-                    title = video_info['title']
-                    duration = video_info['duration']
-                    channel = video_info['channel']
+            with st.spinner("🔍 جاري تحليل البودكاست عبر الذكاء الاصطناعي..."):
+                video_info = extract_video_info(url)
+                title = video_info['title']
+                duration = video_info['duration']
+                channel = video_info['channel']
 
-                    prompt = f"""
-                    أنت خبير مونتاج وصناعة محتوى لـ YouTube Shorts.
-                    لدينا فيديو بودكاست بالمعلومات التالية:
-                    - عنوان الفيديو: "{title}"
-                    - اسم القناة: "{channel}"
-                    - المدة الإجمالية بالثواني: {duration}
+                prompt = f"""
+                أنت خبير مونتاج وصناعة محتوى لـ YouTube Shorts.
+                لدينا فيديو بودكاست بالمعلومات التالية:
+                - عنوان الفيديو: "{title}"
+                - اسم القناة: "{channel}"
+                - المدة الإجمالية بالثواني: {duration}
 
-                    بناءً على عنوان البودكاست وموضوعه العام، قم بتقسيم الفيديو إلى 5 إلى 8 مقاطع (Shorts) ممتازة وجذابة.
-                    أعطني النتيجة حصراً بصيغة قائمة منسقة لكل مقطع تحتوي على:
-                    1. وقت البداية بالثواني (start_seconds)
-                    2. وقت النهاية بالثواني (end_seconds) - بحيث تكون مدة المقطع بين 40 إلى 60 ثانية.
-                    3. عنوان أو فكرة جذابة للمقطع (idea).
-                    
-                    اجعل الإجابة مرتبة وواضحة جداً.
-                    """
-
-                    response = model.generate_content(prompt)
-                    ai_text = response.text
-
-                st.success("✨ تم تحليل البودكاست وتوليد المقاطع بنجاح!")
-                st.markdown("---")
-                st.subheader("📌 معلومات الفيديو:")
-                st.info(f"العنوان: {title} | القناة: {channel}")
-
-                st.subheader("🤖 اقتراحات الذكاء الاصطناعي للمقاطع:")
-                st.write(ai_text)
-
-                st.markdown("---")
-                st.subheader("✍️ صندوق تجهيز الوصف والهاشتاقات:")
+                بناءً على عنوان البودكاست وموضوعه العام، قم بتقسيم الفيديو إلى 5 إلى 8 مقاطع (Shorts) ممتازة وجذابة.
+                أعطني النتيجة حصراً بصيغة قائمة منسقة لكل مقطع تحتوي على:
+                1. وقت البداية بالثواني (start_seconds)
+                2. وقت النهاية بالثواني (end_seconds) - بحيث تكون مدة المقطع بين 40 إلى 60 ثانية.
+                3. عنوان أو فكرة جذابة للمقطع (idea).
                 
-                for i in range(1, 6):
-                    with st.expander(f"🎬 مقطع مقترح رقم #{i}"):
-                        st.text_input(f"عنوان الشورت #{i}", value=f"لقطة مميزة من: {title}", key=f"title_{i}")
-                        st.text_area(f"الوصف #{i}", value=f"تابع التفاصيل الكاملة في بودكاست {channel}\n\n💡 لا تنس الإعجاب والاشتراك للمزيد من المحتوى الهادف!\n#shorts #بودكاست #اكسبلور", key=f"desc_{i}", height=70)
+                اجعل الإجابة مرتبة وواضحة جداً.
+                """
+
+                response = model.generate_content(prompt)
+                ai_text = response.text
+
+            st.success("✨ تم تحليل البودكاست وتوليد المقاطع بنجاح!")
+            st.markdown("---")
+            st.subheader("📌 معلومات الفيديو:")
+            st.info(f"العنوان: {title} | القناة: {channel}")
+
+            st.subheader("🤖 اقتراحات الذكاء الاصطناعي للمقاطع:")
+            st.write(ai_text)
+
+            st.markdown("---")
+            st.subheader("✍️ صندوق تجهيز الوصف والهاشتاقات:")
+            
+            for i in range(1, 6):
+                with st.expander(f"🎬 مقطع مقترح رقم #{i}"):
+                    st.text_input(f"عنوان الشورت #{i}", value=f"لقطة مميزة من: {title}", key=f"title_{i}")
+                    st.text_area(f"الوصف #{i}", value=f"تابع التفاصيل الكاملة في بودكاست {channel}\n\n💡 لا تنس الإعجاب والاشتراك للمزيد من المحتوى الهادف!\n#shorts #بودكاست #اكسبلور", key=f"desc_{i}", height=70)
 
         except Exception as e:
             st.error(f"حدث خطأ أثناء الاتصال أو التحليل: {e}")
