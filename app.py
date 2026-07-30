@@ -1,6 +1,6 @@
 import streamlit as st
 import yt_dlp
-import google.generativeai as genai
+from google import genai
 
 st.set_page_config(page_title="محلل البودكاست الذكي بالـ AI", page_icon="⚡", layout="centered")
 
@@ -38,10 +38,8 @@ if st.button("🚀 تحليل البودكاست واستخراج اللقطات
         st.warning("⚠️ الرجاء إدخال رابط يوتيوب.")
     else:
         try:
-            genai.configure(api_key=api_key)
-            
-            # محاولة استخدام أحدث نموذج متاح بشكل مباشر وآمن
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            # تهيئة العميل بالطريقة الحديثة الرسمية
+            client = genai.Client(api_key=api_key)
 
             with st.spinner("🔍 جاري تحليل البودكاست عبر الذكاء الاصطناعي..."):
                 video_info = extract_video_info(url)
@@ -65,7 +63,11 @@ if st.button("🚀 تحليل البودكاست واستخراج اللقطات
                 اجعل الإجابة مرتبة وواضحة جداً.
                 """
 
-                response = model.generate_content(prompt)
+                # استخدام العميل الحديث لتوليد المحتوى
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=prompt,
+                )
                 ai_text = response.text
 
             st.success("✨ تم تحليل البودكاست وتوليد المقاطع بنجاح!")
