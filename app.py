@@ -45,18 +45,15 @@ if st.button("🚀 تحليل عميق وشامل لكل ثانية في الف�
                 
                 clips_list = []
                 
-                # لتجنب الاعتماد على الـ 10 فصول التابعة ليوتيوب، سنقوم بتقسيم مدة الفيديو بالكامل 
-                # إلى مقاطع متتالية ذكية تتراوح مدتها بين 50 إلى 85 ثانية بشكل ديناميكي ومتغير
                 if duration > 0:
                     current_start = 0
                     clip_counter = 1
                     
-                    # جدول مبرمج لتغيير المدد تلقائياً لكي لا تكون ثابتة (مثلاً مرة 55، مرة 75، مرة 82 ثانية...)
+                    # جدول أطوال مرن ومتغير لكل مقطع لضمان عدم ثبات المدة
                     variable_lengths = [55, 70, 85, 60, 75, 90, 50, 80, 65]
                     
                     length_index = 0
                     while current_start < duration - 20:
-                        # اختيار مدة متغيرة للمقطع الحالي
                         span = variable_lengths[length_index % len(variable_lengths)]
                         end_time = min(current_start + span, duration)
                         
@@ -66,12 +63,11 @@ if st.button("🚀 تحليل عميق وشامل لكل ثانية في الف�
                             "end": end_time
                         })
                         
-                        # التقدم للخطوة التالية مع ترك تداخل بسيط أو انتقال سلس
                         current_start = end_time - 5  # تداخل 5 ثوانٍ لضمان عدم قطع الكلام
                         clip_counter += 1
                         length_index += 1
 
-                st.subheader(f"✨ تم استخراج ({lenضاء} أو {len(clips_list)}) لقطة متكاملة وموزعة على كامل طول الفيديو:")
+                st.subheader(f"✨ تم استخراج ({len(clips_list)}) لقطة متكاملة وموزعة على كامل طول الفيديو:")
 
                 for idx, clip in enumerate(clips_list, 1):
                     start_str = format_time(clip['start'])
@@ -84,11 +80,9 @@ if st.button("🚀 تحليل عميق وشامل لكل ثانية في الف�
                         st.markdown(f"📌 **اسم المقطع:** `{clip_title}`")
                         st.markdown(f"⏳ **التوقيت الدقيق:** من (`{start_str}`) إلى (`{end_str}`) | **المدة المتغيرة:** {clip_duration} ثانية")
                         
-                        # وصف مخصص لكل لقطة
                         custom_desc = f"مقطع مركز وقصة مؤثرة من البودكاست.\n\n💡 تابع القصة للنهاية لتصلك الفكرة كاملة. لا تنس الإعجاب والاشتراك!"
                         st.text_area(f"✍️ الوصف المقترح للمقطع #{idx}:", value=custom_desc, height=70, key=f"desc_{idx}")
                         
-                        # هاشتاقات مخصصة مستوحاة
                         st.text_input(f"🏷️ الهاشتاقات المخصصة #{idx}:", value=f"#shorts #اكسبلور #بودكاست #قصص_واقعية #عبر", key=f"tags_{idx}")
                         
                         st.markdown("---")
