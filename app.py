@@ -9,13 +9,11 @@ st.markdown("""
     <p style='text-align: center;'>تحليل عنوان وسياق الفيديو واقتراح أفضل اللقطات للـ Shorts بذكاء تام!</p>
 """, unsafe_allow_html=True)
 
-# إدخال مفتاح الـ Gemini API من واجهة الاستخدام أو عبر Secrets
 api_key = st.text_input("🔑 أضف مفتاح Google Gemini API الخاص بك:", type="password")
 
 url = st.text_input("🔗 أدخل رابط يوتيوب (بودكاست طويل):")
 
 def extract_video_info(youtube_url):
-    """استخراج معلومات الفيديو الأساسية والعنوان والمدة"""
     ydl_opts = {'skip_download': True}
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(youtube_url, download=False)
@@ -25,17 +23,6 @@ def extract_video_info(youtube_url):
             'channel': info.get('uploader', 'قناة يوتيوب')
         }
 
-def format_time(seconds):
-    """دالة لتحويل الثواني إلى تنسيق زمني دقيق"""
-    seconds = int(seconds)
-    hours = seconds // 3600
-    minutes = (seconds % 3600) // 60
-    secs = seconds % 60
-    if hours > 0:
-        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
-    else:
-        return f"{minutes:02d}:{secs:02d}"
-
 if st.button("🚀 تحليل البودكاست واستخراج اللقطات الذكية"):
     if not api_key:
         st.warning("⚠️ الرجاء إدخال مفتاح Google Gemini API أولاً.")
@@ -44,8 +31,8 @@ if st.button("🚀 تحليل البودكاست واستخراج اللقطات
     else:
         try:
             genai.configure(api_key=api_key)
-            # استخدام نموذج جيميناي السريع والذكي
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            # استخدام النموذج البديل المضمون والمتوافق تماماً
+            model = genai.GenerativeModel('gemini-1.5-pro')
 
             with st.spinner("🔍 جاري جلب بيانات البودكاست وتحليله عبر الذكاء الاصطناعي..."):
                 video_info = extract_video_info(url)
@@ -53,7 +40,6 @@ if st.button("🚀 تحليل البودكاست واستخراج اللقطات
                 duration = video_info['duration']
                 channel = video_info['channel']
 
-                # طلب ذكي من نموذج الذكاء الاصطناعي لتوزيع المقاطع بناءً على العنوان والمدة
                 prompt = f"""
                 أنت خبير مونتاج وصناعة محتوى لـ YouTube Shorts.
                 دينا فيديو بودكاست بالمعلومات التالية:
@@ -67,7 +53,7 @@ if st.button("🚀 تحليل البودكاست واستخراج اللقطات
                 2. وقت النهاية بالثواني (end_seconds) - بحيث تكون مدة المقطع بين 40 إلى 60 ثانية.
                 3. عنوان أو فكرة جذابة للمقطع (idea).
                 
-                اجعل الإجابة مرتبة وواضحة جداً لكي يتم تحليلها برمجياً أو عرضها للمستخدم.
+                اجعل الإجابة مرتبة وواضحة جداً.
                 """
 
                 response = model.generate_content(prompt)
@@ -81,7 +67,6 @@ if st.button("🚀 تحليل البودكاست واستخراج اللقطات
             st.subheader("🤖 اقتراحات الذكاء الاصطناعي للمقاطع:")
             st.write(ai_text)
 
-            # إضافة حقول جاهزة للتعديل والنسخ للمقاطع المقترحة
             st.markdown("---")
             st.subheader("✍️ صندوق تجهيز الوصف والهاشتاقات:")
             
@@ -91,5 +76,4 @@ if st.button("🚀 تحليل البودكاست واستخراج اللقطات
                     st.text_area(f"الوصف #{i}", value=f"تابع التفاصيل الكاملة في بودكاست {channel}\n\n💡 لا تنس الإعجاب والاشتراك للمزيد من المحتوى الهادف!\n#shorts #بودكاست #اكسبلور", key=f"desc_{i}", height=70)
 
         except Exception as e:
-        
             st.error(f"حدث خطأ أثناء الاتصال أو التحليل: {e}")
