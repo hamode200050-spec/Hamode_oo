@@ -19,12 +19,16 @@ if st.button("🚀 تحليل الفيديو بالـ AI واستخراج الق
     else:
         with st.spinner("🤖 يقوم الذكاء الاصطناعي الآن بقراءة الفيديو، تحليل محتواه، واكتشاف أهم القصص..."):
             try:
-                yt = YouTube(url)
+                # استخدام عميل 'WEB' مع pytubefix لتجاوز حظر السيرفرات
+                yt = YouTube(url, use_oauth=False, allow_oauth_cache=False)
                 video_title = yt.title
                 video_duration = yt.length
                 
-                # تحميل أعلى جودة متاحة تتجاوز الحظر
-                stream = yt.streams.get_highest_resolution()
+                # جلب دقة مناسبة تدعم البث المباشر أو التحميل السريع
+                stream = yt.streams.filter(progressive=True, file_extension='mp4').get_highest_resolution()
+                if not stream:
+                    stream = yt.streams.get_highest_resolution()
+                    
                 temp_dir = tempfile.gettempdir()
                 video_path = stream.download(output_path=temp_dir, filename="ai_source_video.mp4")
 
