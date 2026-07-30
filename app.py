@@ -44,47 +44,68 @@ if st.button("🚀 بدء تحليل النص واستخراج أفضل اللح
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         info = ydl.extract_info(url, download=False)
                         title = info.get('title', 'بدون عنوان')
+                        duration = info.get('duration', 600) # مدة الفيديو بالثواني
 
-                    # استخدام الطريقة المباشرة والأكثر استقراراً لسحب الترجمة
+                    transcript_data = None
+                    
+                    # محاولة سحب الترجمة بعدة طرق لتجنب الأخطاء
                     try:
                         transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=['ar', 'en'])
-                    except:
-                        # إذا لم تتوفر بالعربية أو الإنجليزية، جلب أي لغة متوفرة
-                        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-                        transcript_data = transcript_list.find_generated_transcript(['ar', 'en']).fetch()
+                    except Exception:
+                        try:
+                            # محاولة جلب أي لغات متوفرة أخرى
+                            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                            for tr in transcript_list:
+                                transcript_data = tr.fetch()
+                                break
+                        except Exception:
+                            transcript_data = None
 
-                    st.success("✅ تم بنجاح قراءة وتحليل نص البودكاست!")
-                    
+                    # إذا لم تتوفر النصوص نهائياً، نقوم بتقسيم الفيديو افتراضياً بناءً على مدته الحقيقية لضمان عدم توقف الأداة
+                    if not transcript_data:
+                        st.warning("⚠️ هذا الفيديو لا يحتوي على نصوص أو ترجمة متاحة للسحب المباشر. تم الانتقال للتقسيم الذكي بناءً على مدة الفيديو:")
+                        
+                        # إنشاء مقاطع وهمية لكن دقيقة بناءً على مدة البودكاست
+                        step = 60 # كل دقيقة
+                        clips = []
+                        for i in range(0, min(duration, 600), 60):
+                            clips.append({
+                                "start": i,
+                                "end": min(i + 55, duration),
+                                "summary": f"مقطع توضيحي مقترح من البودكاست (الدقيقة {i // 60})"
+                            })
+                    else:
+                        st.success("✅ تم بنجاح قراءة وتحليل نص البودكاست!")
+                        clips = []
+                        current_clip_start = 0
+                        current_text_chunk = []
+                        
+                        for entry in transcript_data:
+                            start = entry.get('start', 0)
+                            text = entry.get('text', '')
+                            
+                            if start - current_clip_start < 75:
+                                current_text_chunk.append(text)
+                            else:
+                                if len(current_text_chunk) > 3:
+                                    end_time = start
+                                    snippet_text = " ".join(current_text_chunk[:5])
+                                    clips.append({
+                                        "start": int(current_clip_start),
+                                        "end": int(end_time),
+                                        "summary": snippet_text[:60] + "..."
+                                    })
+                                current_clip_start = start
+                                current_text_chunk = [text]
+
                     st.markdown("---")
                     st.subheader("📌 عنوان الفيديو الأصلي:")
                     st.info(title)
 
-                    clips = []
-                    current_clip_start = 0
-                    current_text_chunk = []
-                    
-                    for entry in transcript_data:
-                        start = entry.get('start', 0)
-                        text = entry.get('text', '')
-                        
-                        if start - current_clip_start < 75:
-                            current_text_chunk.append(text)
-                        else:
-                            if len(current_text_chunk) > 3:
-                                end_time = start
-                                snippet_text = " ".join(current_text_chunk[:5])
-                                clips.append({
-                                    "start": int(current_clip_start),
-                                    "end": int(end_time),
-                                    "summary": snippet_text[:60] + "..."
-                                })
-                            current_clip_start = start
-                            current_text_chunk = [text]
-
                     if not clips:
-                        st.warning("لم يتم العثور على مقاطع كافية داخل النص.")
+                        st.warning("لم يتم العثور على مقاطع كافية.")
                     else:
-                        st.subheader(f"✨ تم العثور على ({len(clips)}) لقطة حقيقية مستخرجة من سياق الكلام:")
+                        st.subheader(f"✨ تم العثور على ({len(clips)}) لقطة مقترحة للـ Shorts:")
 
                         for idx, clip in enumerate(clips, 1):
                             start_str = format_time(clip['start'])
@@ -94,7 +115,7 @@ if st.button("🚀 بدء تحليل النص واستخراج أفضل اللح
 
                             with st.container():
                                 st.markdown(f"### 🎬 اللقطة رقم #{idx}")
-                                st.markdown(f"📌 **فكرة المقطع من النص:** `{clip_snippet}`")
+                                st.markdown(f"📌 **فكرة المقطع:** `{clip_snippet}`")
                                 st.markdown(f"⏳ **التوقيت الدقيق:** من (`{start_str}`) إلى (`{end_str}`) | **المدة:** {clip_duration} ثانية")
                                 
                                 custom_desc = f"لقطة مؤثرة من البودكاست حول: {clip_snippet}\n\n💡 شاهد المقطع للنهاية لتستفيد من الفكرة كاملة. لا تنس الإعجاب والاشتراك!"
@@ -104,9 +125,5 @@ if st.button("🚀 بدء تحليل النص واستخراج أفضل اللح
                                 
                                 st.markdown("---")
 
-                except TranscriptsDisabled:
-                    st.error("❌ عذراً، الترجمة أو النصوص غير مفعلة لهذا الفيديو، ولا يمكن استخراج النص داخله.")
-                except NoTranscriptFound:
-                    st.error("❌ لم يتم العثور على نصوص متوفرة بهذا الفيديو.")
                 except Exception as e:
-                    st.error(f"حدث خطأ أثناء تحليل النص: {e}")
+                    st.error(f"حدث خطأ أثناء معالجة الرابط: {e}")
