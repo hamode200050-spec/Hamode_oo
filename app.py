@@ -1,6 +1,6 @@
 import streamlit as st
 import yt_dlp
-import google.generativeai as genai
+from google import genai
 
 st.set_page_config(page_title="محلل البودكاست الذكي", page_icon="⚡", layout="centered")
 
@@ -14,27 +14,23 @@ if st.button("🚀 تحليل"):
         st.error("الرجاء إدخال المفتاح والرابط.")
     else:
         try:
-            genai.configure(api_key=api_key)
+            # تهيئة العميل بالطريقة الرسمية الجديدة التي أرسلتها
+            client = genai.Client(api_key=api_key)
             
-            # البحث التلقائي عن أي نموذج يدعم توليد المحتوى لتجنب خطأ 404 نهائياً
-            available_models = []
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    available_models.append(m.name)
+            with yt_dlp.YoutubeDL({'skip_download': True}) as ydl:
+                info = ydl.extract_info(url, download=False)
+                title = info.get('title', 'فيديو')
             
-            if not available_models:
-                st.error("لا توجد نماذج متاحة لهذا المفتاح.")
-            else:
-                model_to_use = available_models[0]
-                model = genai.GenerativeModel(model_to_use)
-                
-                with yt_dlp.YoutubeDL({'skip_download': True}) as ydl:
-                    info = ydl.extract_info(url, download=False)
-                    title = info.get('title', 'فيديو')
-                
-                response = model.generate_content(f"اقترح 3 مقاطع شورتس ممتازة للفيديو وعنوانه: {title}")
-                st.success(f"تم التحليل بنجاح باستخدام النموذج: {model_to_use}")
-                st.write(response.text)
-                
+            prompt = f"اقترح 3 مقاطع شورتس ممتازة للفيديو وعنوانه: {title}"
+            
+            # الاستدعاء بالطريقة الحديثة المطابقة للموقع
+            interaction = client.interactions.create(
+                model="gemini-2.5-flash",
+                input=prompt
+            )
+            
+            st.success("تم التحليل بنجاح!")
+            st.write(interaction.output_text)
+            
         except Exception as e:
             st.error(f"خطأ: {e}")
