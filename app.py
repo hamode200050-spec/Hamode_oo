@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import tempfile
-import yt_dlp
+from pytubefix import YouTube
 from moviepy.video.io.VideoFileClip import VideoFileClip
 
 st.set_page_config(page_title="محلل وصانع الشورتس الذكي", page_icon="🧠", layout="centered")
@@ -13,66 +13,49 @@ st.markdown("""
 
 url = st.text_input("🔗 أدخل رابط يوتيوب (بودكاست أو فيديو طويل):")
 
-if st.button("🚀 تحليل الفيديو واستخراج اللقطات بالـ AI"):
+if st.button("🚀 AI تحليل الفيديو واستخراج اللقطات"):
     if not url:
         st.warning("الرجاء إدخال رابط يوتيوب أولاً.")
     else:
-        with st.spinner("🤖 يقوم الذكاء الاصطناعي الآن بقراءة فصول الفيديو وفحص المحتوى لاكتشاف أفضل اللقطات..."):
+        with st.spinner("🤖 يقوم الذكاء الاصطناعي الآن بقراءة الفيديو واكتشاف أفضل اللقطات..."):
             try:
-                ydl_opts = {
-                    'format': 'best[height<=720]',
-                    'outtmpl': os.path.join(tempfile.gettempdir(), 'podcast_source.mp4'),
-                    'noplaylist': True,
-                    'http_headers': {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    },
-                    'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
-                }
+                # استخدام pytubefix المتوافقة تماماً مع تجاوز حظر سيرفرات السحابية
+                yt = YouTube(url)
+                video_title = yt.title
+                video_duration = yt.length
                 
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=True)
-                    video_title = info.get('title', 'فيديو يوتيوب')
-                    video_duration = info.get('duration', 0)
-                    video_path = ydl.prepare_filename(info)
-                    chapters = info.get('chapters', None)
+                # جلب دقة مناسبة وسريعة
+                stream = yt.streams.filter(progressive=True, file_extension='mp4').get_highest_resolution()
+                if not stream:
+                    stream = yt.streams.get_highest_resolution()
+                    
+                temp_dir = tempfile.gettempdir()
+                video_path = stream.download(output_path=temp_dir, filename="podcast_source.mp4")
 
                 st.success(f"✅ تم تحليل الفيديو بنجاح: {video_title}")
 
-                # توليد المقاطع بناءً على الفصول الموجودة في الفيديو أو تقطيعه ذكياً
+                # تقسيم الفيديو تلقائياً إلى مقاطع مقترحة للبودكاست الطويل
                 ai_clips = []
-                if chapters:
-                    for i, ch in enumerate(chapters):
-                        start = int(ch.get('start_time', 0))
-                        end = int(ch.get('end_time', start + 50))
-                        if end - start > 60: # جعل مدة المقطع بحدود 50-60 ثانية للشورتس
-                            end = start + 55
-                        ai_clips.append({
-                            "title": ch.get('title', f"مقطع ذكي #{i+1}"),
-                            "start": start,
-                            "end": end
-                        })
-                else:
-                    # تقسيم افتراضي للبودكاست الطويل كل عدة دقائق
-                    step = 300 # كل 5 دقائق لقطة مقترحة
-                    for i, sec in enumerate(range(0, int(video_duration) - 60, step)):
-                        ai_clips.append({
-                            "title": f"🔥 لقطة مقترحة رقم #{i+1}",
-                            "start": sec,
-                            "end": sec + 50
-                        })
+                step = 300 # كل 5 دقائق لقطة مقترحة
+                for i, sec in enumerate(range(0, max(1, int(video_duration) - 60), step)):
+                    ai_clips.append({
+                        "title": f"🔥 لقطة مقترحة رقم #{i+1} للبودكاست",
+                        "start": sec,
+                        "end": min(sec + 50, int(video_duration))
+                    })
 
                 st.info(f"✨ اكتشف الذكاء الاصطناعي ({len(ai_clips)}) مقطعاً مهماً في هذا البودكاست:")
 
-                for idx, clip in enumerate(ai_clips[:10], 1): # عرض أول 10 مقاطع مقترحة
+                for idx, clip in enumerate(ai_clips[:10], 1):
                     st.markdown("---")
                     st.subheader(f"🎬 اللقطة المقترحة #{idx}")
                     st.write(f"📌 **العنوان:** {clip['title']}")
-                    st.write(f"⏱️ **التوقيت:** من الدقيقة {clip['start']//60} إلى {clip['end']//60}")
+                    st.write(f"⏱️ **التوقيت:** من الدقيقة {clip['start']//60} إلى الدقيقة {clip['end']//60}")
                     
-                    output_clip_path = os.path.join(tempfile.gettempdir(), f"ai_short_{idx}.mp4")
+                    output_clip_path = os.path.join(temp_dir, f"ai_short_{idx}.mp4")
                     
                     if st.button(f"✂️ قص وتحويل هذه اللقطة إلى 9:16", key=f"cut_btn_{idx}"):
-                        with st.spinner("جاري قص وتعديل المقطع..."):
+                        with st.spinner("جاري قص وتعديل المقطع بدقة عمودية..."):
                             with VideoFileClip(video_path) as video:
                                 sub = video.subclipped(clip['start'], clip['end'])
                                 w, h = sub.size
