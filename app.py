@@ -20,12 +20,11 @@ if st.button("🚀 تحليل الفيديو بالـ AI واستخراج الق
         with st.spinner("🤖 يقوم الذكاء الاصطناعي الآن بقراءة الفيديو، تحليل محتواه، واكتشاف أهم القصص..."):
             try:
                 ydl_opts = {
-                    'format': 'worst[ext=mp4]/worst',
+                    'format': 'mp4',
                     'outtmpl': os.path.join(tempfile.gettempdir(), 'ai_source_video.mp4'),
                     'noplaylist': True,
-                    'geo_bypass': True,
-                    'nocheckcertificate': True,
-                    'extractor_args': {'youtube': {'player_client': ['ios', 'web']}},
+                    'extractor_args': {'youtube': {'player_client': ['mweb']}},
+                    'socket_timeout': 30,
                 }
                 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
