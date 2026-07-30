@@ -1,57 +1,34 @@
 import streamlit as st
-import yt_dlp
 from groq import Groq
 import os
-import re
 
-st.set_page_config(page_title="محلل البودكاست الذكي (النسخة الصوتية الخارقة)", page_icon="⚡", layout="centered")
+st.set_page_config(page_title="محلل البودكاست الذكي (النسخة النهائية المباشرة)", page_icon="⚡", layout="centered")
 
-st.markdown("<h1 style='text-align: center;'>⚡ محلل البودكاست الذكي (مع تحليل الصوت الحقيقي Whisper)</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>⚡ محلل البودكاست الذكي (رفع الملف الصوتي مباشرة)</h1>", unsafe_allow_html=True)
 
 api_key = st.text_input("🔑 أضف مفتاح Groq API الخاص بك:", type="password")
-url = st.text_input("🔗 أدخل رابط يوتيوب:")
 
-if st.button("🚀 تحليل الصوت الحقيقي واستخراج المقاطع"):
-    if not api_key or not url:
-        st.error("الرجاء إدخال المفتاح والرابط.")
+# استخدام رفع الملفات لتجاوز حظر يوتيوب نهائياً
+uploaded_file = st.file_uploader("📁 ارفع ملف الصوت أو الحلقة (MP3, M4A, WAV):", type=["mp3", "m4a", "wav", "mp4"])
+video_title = st.text_input("📌 عنوان الحلقة أو البودكاست:", value="حلقة بودكاست")
+
+if st.button("🚀 بدء التحليل الفوري عبر Whisper"):
+    if not api_key or not uploaded_file:
+        st.error("الرجاء إدخال مفتاح Groq API ورفع ملف الصوت أولاً.")
     else:
         try:
             client = Groq(api_key=api_key)
             
-            # 1. إعدادات سحب الصوت مع تجاوز حظر يوتيوب (HTTP Error 403)
-            ydl_opts = {
-                'format': 'worstaudio/worst',
-                'outtmpl': 'temp_audio.%(ext)s',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '64',
-                }],
-                'quiet': True,
-                'noplaylist': True,
-                'nocheckcertificate': True,
-                'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
-                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-            
-            with st.spinner("جاري تنزيل عينة الصوت من يوتيوب لتحليلها..."):
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=True)
-                    title = info.get('title', 'فيديو')
-                    
-            # البحث عن الملف الصوتي الناتج
-            audio_file_path = "temp_audio.mp3"
-            if not os.path.exists(audio_file_path):
-                for file in os.listdir("."):
-                    if file.startswith("temp_audio"):
-                        audio_file_path = file
-                        break
+            # حفظ الملف المرفوع مؤقتياً
+            temp_file_path = "uploaded_temp_audio.mp3"
+            with open(temp_file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
 
-            # 2. إرسال الملف الصوتي إلى نموذج Whisper في Groq لتفريغه حرفياً مع التوقيتات
-            with st.spinner("جاري تفريغ الصوت وتحويله إلى نص دقيق عبر نموذج Whisper..."):
-                with open(audio_file_path, "rb") as file_to_transcribe:
+            # تفريغ الصوت عبر Whisper
+            with st.spinner("جاري تفريغ الصوت بدقة متناهية عبر نموذج Whisper..."):
+                with open(temp_file_path, "rb") as file_to_transcribe:
                     transcription = client.audio.transcriptions.create(
-                        file=(audio_file_path, file_to_transcribe.read()),
+                        file=(temp_file_path, file_to_transcribe.read()),
                         model="whisper-large-v3",
                         response_format="verbose_json",
                         language="ar"
@@ -69,45 +46,43 @@ if st.button("🚀 تحليل الصوت الحقيقي واستخراج الم�
                 
                 full_transcript = " ".join(transcript_segments)[:15000]
 
-            # تنظيف الملف المؤقت
-            if os.path.exists(audio_file_path):
-                os.remove(audio_file_path)
+            # حذف الملف المؤقت
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
 
-            # 3. تحليل النص الدقيق عبر Llama واستخراج المقاطع
-            with st.spinner("جاري استخراج المقاطع القصيرة بناءً على التفريغ الصوتي الحقيقي..."):
+            # استخراج المقاطع القصيرة عبر Llama
+            with st.spinner("جاري تحليل النص واستخراج أفضل المقاطع القصيرة (Shorts)..."):
                 prompt = f"""
-                أنت خبير محترف لإدارة ونشر محتوى البودكاست وتحليل الفيديوهات. 
-                عنوان الفيديو: "{title}"
+                أنت خبير محترف لإدارة ونشر محتوى البودكاست. 
+                عنوان الحلقة: "{video_title}"
                 
-                إليك تفريغ النص الصوتي الحقيقي (Transcript) المستخرج من الفيديو مع التوقيتات:
+                إليك تفريغ النص الصوتي الحقيقي مع التوقيتات:
                 {full_transcript}
 
-                مهمتك: قم بتحليل التفريغ بعمق واستخراج **أفضل 4 إلى 5 مقاطع قصيرة (Shorts/Reels)** موجودة فعلياً داخل النص بالأوقات الصحيحة.
+                مهمتك: استخرج **أفضل 4 إلى 5 مقاطع قصيرة (Shorts/Reels)** موجودة فعلياً بالأوقات الصحيحة.
                 
-                شروط صارمة جداً:
-                1. **المدة:** تتراوح مدة كل مقطع بين 30 إلى 90 ثانية فقط.
-                2. **الدقة الزمنية:** اعتمد حصراً على التوقيتات الزمنية الموجودة في النص الصوتي بالأعلى لتبدأ وتنتهي الأفكار بشكل صحيح ودقيق.
+                شروط صارمة:
+                1. **المدة:** تتراوح بين 30 إلى 90 ثانية فقط لكل مقطع.
+                2. **الدقة:** اعتمد حصراً على التوقيتات الموجودة في النص.
                 
-                لكل مقطع قصير، اكتب التفاصيل التالية بوضوح وتحت كل مقطع على حدة:
-                - **اسم المقطع:** (عنوان جذاب ومستقل).
-                - **التوقيت الدقيق:** (من الدقيقة:الثانية إلى الدقيقة:الثانية، مع ذكر المدة بالثواني).
-                - **سبب القص:** (لماذا اخترنا هذا الجزء).
-                - **وصف المقطع:** (وصف جاهز للنشر).
-                - **الهاشتاقات:** (هاشتاقات خاصة بالمقطع).
+                لكل مقطع، اكتب:
+                - **اسم المقطع:** 
+                - **التوقيت الدقيق:** (من الدقيقة:الثانية إلى الدقيقة:الثانية)
+                - **سبب القص:** 
+                - **وصف المقطع:** 
+                - **الهاشتاقات:** 
                 """
                 
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ],
+                    messages=[{"role": "user", "content": prompt}],
                     temperature=0.5,
                 )
             
-            st.success("تم تحليل الصوت الحقيقي واستخراج المقاطع بنجاح تام!")
+            st.success("تم التحليل واستخراج المقاطع بنجاح تام!")
             st.markdown(completion.choices[0].message.content)
             
         except Exception as e:
-            if os.path.exists("temp_audio.mp3"):
-                os.remove("temp_audio.mp3")
-            st.error(f"حدث خطأ أثناء معالجة الصوت: {e}")
+            if os.path.exists("temp_file_path"):
+                os.remove("temp_file_path")
+            st.error(f"حدث خطأ أثناء المعالجة: {e}")
