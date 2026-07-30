@@ -22,6 +22,7 @@ if st.button("🚀 تحليل الفيديو بالـ AI واستخراج الق
                 ydl_opts = {
                     'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
                     'outtmpl': os.path.join(tempfile.gettempdir(), 'ai_source_video.mp4'),
+                    'noplaylist': True,
                 }
                 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
