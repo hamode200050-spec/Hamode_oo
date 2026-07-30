@@ -7,74 +7,61 @@ from moviepy.video.io.VideoFileClip import VideoFileClip
 st.set_page_config(page_title="محلل وصانع الشورتس الذكي", page_icon="🧠", layout="centered")
 
 st.markdown("""
-    <h1 style='text-align: center;'>🧠 محلل وصانع الشورتس الذكي بالذكاء الاصطناعي</h1>
-    <p style='text-align: center;'>استخراج وتحليل اللقطات المهمة من البودكاست الطويل وتحويلها لشورتس بدقة 9:16 تلقائياً!</p>
+    <h1 style='text-align: center;'>🧠 صانع الشورتس السريع للبودكاست</h1>
+    <p style='text-align: center;'>أدخل الرابط، حدد وقت المقطع، وحوله إلى 9:16 فوراً بدون أخطاء!</p>
 """, unsafe_allow_html=True)
 
-url = st.text_input("🔗 أدخل رابط يوتيوب (بودكاست أو فيديو طويل):")
+url = st.text_input("🔗 أدخل رابط يوتيوب:")
 
-if st.button("🚀 AI تحليل الفيديو واستخراج اللقطات"):
+col1, col2 = st.columns(2)
+with col1:
+    start_min = st.number_input("⏱️ دقيقة البداية:", min_value=0, value=0, step=1)
+    start_sec = st.number_input(" ثانية البداية:", min_value=0, max_value=59, value=0, step=1)
+with col2:
+    end_min = st.number_input("⏱️ دقيقة النهاية:", min_value=0, value=1, step=1)
+    end_sec = st.number_input(" ثانية النهاية:", min_value=0, max_value=59, value=0, step=1)
+
+if st.button("✂️ قص وتحويل المقطع إلى 9:16"):
     if not url:
-        st.warning("الرجاء إدخال رابط يوتيوب أولاً.")
+        st.warning("الرجاء إدخال رابط يوتيوب.")
     else:
-        with st.spinner("🤖 يقوم الذكاء الاصطناعي الآن بقراءة الفيديو واكتشاف أفضل اللقطات..."):
+        with st.spinner("⏳ جاري سحب المقطع بدقة وتعديله..."):
             try:
-                # استخدام pytubefix المتوافقة تماماً مع تجاوز حظر سيرفرات السحابية
                 yt = YouTube(url)
-                video_title = yt.title
-                video_duration = yt.length
-                
-                # جلب دقة مناسبة وسريعة
-                stream = yt.streams.filter(progressive=True, file_extension='mp4').get_highest_resolution()
+                # استخدام دقة متوسطة لتسريع العملية وتجنب الحظر
+                stream = yt.streams.filter(file_extension='mp4', res="720p").first()
                 if not stream:
-                    stream = yt.streams.get_highest_resolution()
-                    
+                    stream = yt.streams.filter(file_extension='mp4').first()
+                
                 temp_dir = tempfile.gettempdir()
-                video_path = stream.download(output_path=temp_dir, filename="podcast_source.mp4")
+                video_path = stream.download(output_path=temp_dir, filename="target_video.mp4")
 
-                st.success(f"✅ تم تحليل الفيديو بنجاح: {video_title}")
+                start_total = (start_min * 60) + start_sec
+                end_total = (end_min * 60) + end_sec
 
-                # تقسيم الفيديو تلقائياً إلى مقاطع مقترحة للبودكاست الطويل
-                ai_clips = []
-                step = 300 # كل 5 دقائق لقطة مقترحة
-                for i, sec in enumerate(range(0, max(1, int(video_duration) - 60), step)):
-                    ai_clips.append({
-                        "title": f"🔥 لقطة مقترحة رقم #{i+1} للبودكاست",
-                        "start": sec,
-                        "end": min(sec + 50, int(video_duration))
-                    })
+                output_clip_path = os.path.join(temp_dir, "final_short.mp4")
 
-                st.info(f"✨ اكتشف الذكاء الاصطناعي ({len(ai_clips)}) مقطعاً مهماً في هذا البودكاست:")
-
-                for idx, clip in enumerate(ai_clips[:10], 1):
-                    st.markdown("---")
-                    st.subheader(f"🎬 اللقطة المقترحة #{idx}")
-                    st.write(f"📌 **العنوان:** {clip['title']}")
-                    st.write(f"⏱️ **التوقيت:** من الدقيقة {clip['start']//60} إلى الدقيقة {clip['end']//60}")
+                with VideoFileClip(video_path) as video:
+                    if end_total > video.duration:
+                        end_total = int(video.duration)
                     
-                    output_clip_path = os.path.join(temp_dir, f"ai_short_{idx}.mp4")
-                    
-                    if st.button(f"✂️ قص وتحويل هذه اللقطة إلى 9:16", key=f"cut_btn_{idx}"):
-                        with st.spinner("جاري قص وتعديل المقطع بدقة عمودية..."):
-                            with VideoFileClip(video_path) as video:
-                                sub = video.subclipped(clip['start'], clip['end'])
-                                w, h = sub.size
-                                target_w = h * 9 / 16
-                                if target_w < w:
-                                    x1 = (w - target_w) / 2
-                                    sub = sub.crop(x1=x1, y1=0, x2=x1 + target_w, y2=h)
-                                sub = sub.resized(width=1080, height=1920)
-                                sub.write_videofile(output_clip_path, codec="libx264", audio_codec="aac", logger=None)
-                            
-                            st.success("✅ تم تجهيز الشورت بنجاح!")
-                            with open(output_clip_path, "rb") as file:
-                                st.download_button(
-                                    label=f"⬇️ تحميل الشورت #{idx} (9:16)",
-                                    data=file,
-                                    file_name=f"short_clip_{idx}.mp4",
-                                    mime="video/mp4",
-                                    key=f"dl_{idx}"
-                                )
+                    sub = video.subclipped(start_total, end_total)
+                    w, h = sub.size
+                    target_w = h * 9 / 16
+                    if target_w < w:
+                        x1 = (w - target_w) / 2
+                        sub = sub.crop(x1=x1, y1=0, x2=x1 + target_w, y2=h)
+                    sub = sub.resized(width=1080, height=1920)
+                    sub.write_videofile(output_clip_path, codec="libx264", audio_codec="aac", logger=None)
+
+                st.success("✅ تم تجهيز الشورت بنجاح!")
+                with open(output_clip_path, "rb") as file:
+                    st.download_button(
+                        label="⬇️ تحميل الشورت جاهز للنشر (9:16)",
+                        data=file,
+                        file_name="podcast_short.mp4",
+                        mime="video/mp4"
+                    )
 
             except Exception as e:
-                st.error(f"حدث خطأ أثناء معالجة الرابط: {e}")
+                st.error(f"حدث خطأ أثناء المعالجة: {e}")
