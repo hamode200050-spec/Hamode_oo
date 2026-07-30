@@ -9,7 +9,16 @@ st.markdown("""
     <p style='text-align: center;'>تحليل عنوان وسياق الفيديو واقتراح أفضل اللقطات للـ Shorts بذكاء تام!</p>
 """, unsafe_allow_html=True)
 
-api_key = st.text_input("🔑 أضف مفتاح Google Gemini API الخاص بك:", type="password")
+# جلب المفتاح من الـ Secrets أو من الحقل اليدوي
+api_key = ""
+try:
+    if "GEMINI_API_KEY" in st.secrets:
+        api_key = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    pass
+
+if not api_key:
+    api_key = st.text_input("🔑 أضف مفتاح Google Gemini API الخاص بك:", type="password")
 
 url = st.text_input("🔗 أدخل رابط يوتيوب (بودكاست طويل):")
 
@@ -31,8 +40,15 @@ if st.button("🚀 تحليل البودكاست واستخراج اللقطات
     else:
         try:
             genai.configure(api_key=api_key)
-            # استخدام اسم النموذج الأساسي المتوافق دائماً مع الـ API Keys
-            model = genai.GenerativeModel('gemini-pro')
+            
+            # استخدام الطريقة الآمنة لاختيار النموذج المتاح حصراً لتوليد النصوص
+            model_name = 'gemini-1.5-flash'
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    model_name = m.name
+                    break
+            
+            model = genai.GenerativeModel(model_name)
 
             with st.spinner("🔍 جاري جلب بيانات البودكاست وتحليله عبر الذكاء الاصطناعي..."):
                 video_info = extract_video_info(url)
