@@ -18,7 +18,7 @@ if st.button("🚀 تحليل الصوت الحقيقي واستخراج الم�
         try:
             client = Groq(api_key=api_key)
             
-            # 1. تحميل الصوت بصيغة خفيفة جداً ومؤقتة باستخدام yt_dlp
+            # 1. إعدادات سحب الصوت مع تجاوز حظر يوتيوب (HTTP Error 403)
             ydl_opts = {
                 'format': 'worstaudio/worst',
                 'outtmpl': 'temp_audio.%(ext)s',
@@ -28,7 +28,10 @@ if st.button("🚀 تحليل الصوت الحقيقي واستخراج الم�
                     'preferredquality': '64',
                 }],
                 'quiet': True,
-                'noplaylist': True
+                'noplaylist': True,
+                'nocheckcertificate': True,
+                'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
             
             with st.spinner("جاري تنزيل عينة الصوت من يوتيوب لتحليلها..."):
@@ -39,25 +42,22 @@ if st.button("🚀 تحليل الصوت الحقيقي واستخراج الم�
             # البحث عن الملف الصوتي الناتج
             audio_file_path = "temp_audio.mp3"
             if not os.path.exists(audio_file_path):
-                # البحث عن أي امتداد آخر لو حدث اختلاف
                 for file in os.listdir("."):
                     if file.startswith("temp_audio"):
                         audio_file_path = file
                         break
 
-            # 2. إرسال الملف الصوتي إلى نموذج Whisper الذكي في Groq لتفريغه حرفياً مع التوقيتات
+            # 2. إرسال الملف الصوتي إلى نموذج Whisper في Groq لتفريغه حرفياً مع التوقيتات
             with st.spinner("جاري تفريغ الصوت وتحويله إلى نص دقيق عبر نموذج Whisper..."):
                 with open(audio_file_path, "rb") as file_to_transcribe:
                     transcription = client.audio.transcriptions.create(
                         file=(audio_file_path, file_to_transcribe.read()),
                         model="whisper-large-v3",
-                        response_format="verbose_json",  # للحصول على التوقيتات الزمنية بدقة
+                        response_format="verbose_json",
                         language="ar"
                     )
                 
-                # استخراج النصوص مع أوقاتها الحقيقية من نتيجة Whisper
                 transcript_segments = []
-                # التحقق من وجود المقاطع الزمنية بالاستجابة
                 if hasattr(transcription, 'segments') and transcription.segments:
                     for segment in transcription.segments:
                         start_sec = int(segment.get('start', 0))
@@ -65,12 +65,11 @@ if st.button("🚀 تحليل الصوت الحقيقي واستخراج الم�
                         text = segment.get('text', '')
                         transcript_segments.append(f"[{mins:02d}:{secs:02d}] {text}")
                 else:
-                    # استخلاص النص الكلي لو الـ segments غير متوفرة
                     transcript_segments.append(getattr(transcription, 'text', str(transcription)))
                 
                 full_transcript = " ".join(transcript_segments)[:15000]
 
-            # تنظيف وحذف الملف المؤقت من النظام
+            # تنظيف الملف المؤقت
             if os.path.exists(audio_file_path):
                 os.remove(audio_file_path)
 
@@ -109,7 +108,6 @@ if st.button("🚀 تحليل الصوت الحقيقي واستخراج الم�
             st.markdown(completion.choices[0].message.content)
             
         except Exception as e:
-            # تنظيف الملف لو حدث خطأ
             if os.path.exists("temp_audio.mp3"):
                 os.remove("temp_audio.mp3")
             st.error(f"حدث خطأ أثناء معالجة الصوت: {e}")
