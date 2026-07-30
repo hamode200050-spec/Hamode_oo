@@ -45,24 +45,14 @@ if st.button("🚀 بدء تحليل النص واستخراج أفضل اللح
                         info = ydl.extract_info(url, download=False)
                         title = info.get('title', 'بدون عنوان')
 
-                    # استخدام الطريقة المتوافقة مع أحدث إصدارات المكتبة لجلب الترجمة
-                    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-                    
-                    # محاولة سحب الترجمة العربية أو الإنجليزية المتاحة
-                    transcript = None
+                    # استخدام الطريقة المباشرة والأكثر استقراراً لسحب الترجمة
                     try:
-                        transcript = transcript_list.find_transcript(['ar', 'en'])
+                        transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=['ar', 'en'])
                     except:
-                        # إذا لم تكما متاحتين، نأخذ أي ترجمة متوفرة ونترجمها أو نعرضها
-                        for tr in transcript_list:
-                            transcript = tr
-                            break
-                    
-                    if transcript:
-                        transcript_data = transcript.fetch()
-                    else:
-                        raise NoTranscriptFound("لا توجد ترجمة متاحة")
-                    
+                        # إذا لم تتوفر بالعربية أو الإنجليزية، جلب أي لغة متوفرة
+                        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                        transcript_data = transcript_list.find_generated_transcript(['ar', 'en']).fetch()
+
                     st.success("✅ تم بنجاح قراءة وتحليل نص البودكاست!")
                     
                     st.markdown("---")
